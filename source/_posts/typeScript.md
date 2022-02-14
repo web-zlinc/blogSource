@@ -26,7 +26,7 @@ tags:
 
 #### 工作流程
 
-![image-20211019160851404](/public/assets/img/ts-typical-workflows.jpg)
+![image-20211019160851404](../assets/img/ts-typical-workflows.jpg)
 
 #### 安装
 
