@@ -4,9 +4,9 @@
 
 # Site
 title: Lin的博客
-subtitle: '不积跬步无以至千里'
-description: '不积跬步无以至千里'
-author: Web_lin
+subtitle: '了解真相，才能真正获得自由'
+description: '了解真相，才能真正获得自由'
+author: web_lin
 email: zlinchong@163.com
 keywords: '前端,js,jquery,javascript,html5,开发者,程序猿,程序媛,极客,编程,代码,开源,IT网站,Developer,Programmer,Coder,Geek,html,css,css3,用户体验'
 
@@ -96,7 +96,7 @@ ignore:
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: yilia
+theme: yilia-plus
 
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
