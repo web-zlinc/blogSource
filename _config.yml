@@ -12,7 +12,7 @@ keywords: '前端,js,jquery,javascript,html5,开发者,程序猿,程序媛,极�
 
 # URL
 ## Set your site url here. For example, if you use GitHub Page, set url as 'https://username.github.io/project'
-url: http://example.com
+url: https://web-zlinc.github.io
 permalink: :year/:month/:day/:title/
 permalink_defaults:
 pretty_urls:
