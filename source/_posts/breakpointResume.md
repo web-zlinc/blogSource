@@ -1,53 +1,206 @@
 ---
-title: 断点续传
+title: 大文件如何做断点续传
 layout: page
 date: 2022-07-05 11:18
 comments: true
 tags: 
 	- http
-  - react
 key: "1"
 ---
 
 ### 前言
-> 相信大家都做过上传文件的需求，不可避免会遇到上传大文件时，由于要上传大量数据，导致上传的整个过程较慢。并且前后端交互不可能无限制时间，这就导致了大文件上传总是超时而失败。因此为了规避此类问题，就引入了本文所讨论的技术方案---断点续传。
-
+> 相信大家都做过上传文件的需求，不可避免会遇到上传大文件时，由于要上传大量数据，导致上传的整个过程较慢。并且前后端交互不可能无限制时间，这就导致了大文件上传总是超时而失败。因此为了规避此类问题，我们需要对大文件上传做单独处理，因此会涉及分片上传和断点续传两个概念。
 <!--more-->
-### 原理
-既然大文件不支持一次性上传，那我们就将大文件按一定规则分割成多个小文件，然后客户端每次只上传一个小文件（切片），后端接收到上传过来的全部文件后根据一定的规则来组合这些小文件。如果在上传过程中出现网络中断等意外情况，下次再次上传时可以从已经上传的部分继续上传，而不是重新上传。
+### 分片上传
+既然大文件不支持一次性上传，那我们就将大文件按一定规则分割成多个小文件，然后客户端每次只上传一个小文件（切片）。
+![文件分片](https://ask.qcloudimg.com/http-save/yehe-3806669/d1intzxe7c.png?imageView2/2/w/1620)
+上传完后，后端接收到上传过来的全部文件后根据一定的规则来组合这些小文件。
+流程如下：
+1. 将需要上传的文件按照一定的分割规则，分割成相同大小的数据块；
+2. 初始化一个分片上传任务，返回本次分片上传唯一标识；
+3. 按照一定的策略（串行或并行）发送各个分片数据块；
+4. 发送完成后，服务端根据判断数据上传是否完整，如果完整，则进行数据块合成得到原始文件
 
-### 详解
-断点续传技术利用http1.1协议在Header里添加两个参数来实现，两个参数分别是客户端请求时发送的Range和服务端返回信息时返回的Content-Range，Range用于指定第一个字节和最后一个字节的位置，格式如下：
+### 断点上传
+在下载或上传时，将下载或上传任务人为的划分为几个部分，每一个部分采用一个线程进行上传或下载，如果碰到网络故障，可以从已经上传或下载的部分开始继续上传下载未完成的部分，而不必从头开始上传下载。
+一般实现方式有两种：
+- 服务器端返回，告知从哪开始
+- 浏览器端自行处理
+
+上传过程中将文件在服务器写为临时文件，等全部写完了（文件上传完），将此临时文件重命名为正式文件即可，如果中途上传中断过，下次上传的时候根据当前临时文件大小，作为在客户端读取文件的偏移量，从此位置继续读取文件数据块，上传到服务器从此偏移量继续写入文件即可。
+
+### 实现思路
+整体思路比较简单，拿到文件，保存文件唯一性标识，切割文件，分段上传，每次上传一段，根据唯一性标识判断文件上传进度，直到文件的全部片段上传完毕
+![](https://ask.qcloudimg.com/http-save/yehe-3806669/uz6mtuvgsu.png?imageView2/2/w/1620)
+代码实现大概如下：
+* 读取文件内容
 ```javascript
-  Range:(unit=first byte pos)-[last byte pos]
+const input = document.querySelector('input');
+input.addEventListener('change', function() {
+    var file = this.files[0];
+});
 ```
-Range常用的格式有一下情况：
-- Range:bytes=0-1024 ，表示传输的是从开头到第1024字节的内容；
-- Range:bytes=1025-2048 ，表示传输的是从第1025到2048字节范围的内容；
-- Range:bytes=-2000 ，表示传输的是最后2000字节的内容；
-- Range:bytes=1024- ，表示传输的是从第1024字节开始到文件结束部分的内容；
-- Range:bytes=0-0,-1 表示传输的是第一个和最后一个字节 ；
-- Range:bytes=1024-2048,2049-3096,3097-4096 ，表示传输的是多个字节范围。
-Content-Range用于响应带有Range的请求。服务器会将Content-Range添加到响应的头部，格式如下：
+* 可以使用md5实现文件的唯一性
 ```javascript
-  Content-Range:bytes(unit first byte pos)-[last byte pos]/[entity length]
+const md5code = md5(file);
 ```
-场景格式内容如下：
+* 分割文件
 ```javascript
-  Content-Range: bytes 2048-4096/10240
+var reader = new FileReader();
+reader.readAsArrayBuffer(file);
+reader.addEventListener("load", function(e) {
+    //每10M切割一段,这里只做一个切割演示，实际切割需要循环切割，
+    var slice = e.target.result.slice(0, 10*1024*1024);
+});
 ```
-**注意：这里的2048-4096表示当前发送的数据范围，10240表示文件总大小。**
-光有Range和Content-Range还是不够的，还要知道服务端是否支持断点续传，需要从如下两方面判断即可：
+* h5上传一个分片
+```javascript
+const formdata = new FormData();
+formdata.append('0', slice);
+//这里是有一个坑的，部分设备无法获取文件名称，和文件类型，这个在最后给出解决方案
+formdata.append('filename', file.filename);
+var xhr = new XMLHttpRequest();
+xhr.addEventListener('load', function() {
+    //xhr.responseText
+});
+xhr.open('POST', '');
+xhr.send(formdata);
+xhr.addEventListener('progress', updateProgress);
+xhr.upload.addEventListener('progress', updateProgress);
 
-- 判断服务端是否是 HTTP/1.1 及以上版本，如果是则支持断点续传，如果不是则不支持。
-- 服务端返回响应的头部是否包含 Access-Ranges ，且参数内容是 bytes
-符合以上两个条件即可判定位支持断点续传。**注意：**If-Range 必须与 Range 配套使用。缺少其中任意一个另一个都会被忽略。
+function updateProgress(event) {
+    if (event.lengthComputable) {
+        //进度条
+    }
+}
+```
+* 常见的图片和视频的文件类型判断
+```javascript
+function checkFileType(type, file, back) {
+/**
+* type png jpg mp4 ...
+* file input.change=> this.files[0]
+* back callback(boolean)
+*/
+    var args = arguments;
+    if (args.length != 3) {
+        back(0);
+    }
+    var type = args[0]; // type = '(png|jpg)' , 'png'
+    var file = args[1];
+    var back = typeof args[2] == 'function' ? args[2] : function() {};
+    if (file.type == '') {
+        // 如果系统无法获取文件类型，则读取二进制流，对二进制进行解析文件类型
+        var imgType = [
+            'ff d8 ff', //jpg
+            '89 50 4e', //png
 
-### 校验
-当服务器文件发生改变后，客户端继续向服务端发送断点续传时数据肯定出错。这时候需要Last-Modified来标识服务端文件是否发生变化，客服端使用if-modified-since将前面服务端发送给客服端的Last-Modified发送给服务器，服务器进行最后修改时间验证后，来告知客户端发是否需要重新从服务器获取内容。客户端判断是否需要更新，只需判断服务器返回的状态码即可：
-- 206 代表不需要重新获取接着下载就行
-- 200代表需要重新获取。 
-但是 Last-Modified 和 if-Modified-Since 存在一些问题：
+            '0 0 0 14 66 74 79 70 69 73 6F 6D', //mp4
+            '0 0 0 18 66 74 79 70 33 67 70 35', //mp4
+            '0 0 0 0 66 74 79 70 33 67 70 35', //mp4
+            '0 0 0 0 66 74 79 70 4D 53 4E 56', //mp4
+            '0 0 0 0 66 74 79 70 69 73 6F 6D', //mp4
 
-> 某些文件只是修改了时间内容却没变，这时我们并不希望客户端重新缓存这些文件；某些文件修改频繁，有时一秒要修改十几次，但是 if-Modified-Since 是秒级的，无法判断比秒更小的级别； 部分服务器无法获得精确的修改时间。 
-要解决上述问题需要用到 Etag ，只需将相关标记（例如文件版本号等）放在引号内即可。当使用校验的时候我们不需要手动实现验证，只需要利用 if-Range 结合 Last-Modified 或者 Etage 来判断是否发生改变，如果没有发生改变服务器将向客户端发送剩余的部分，否则发送全部。
+            '0 0 0 18 66 74 79 70 6D 70 34 32', //m4v
+            '0 0 0 0 66 74 79 70 6D 70 34 32', //m4v
+
+            '0 0 0 14 66 74 79 70 71 74 20 20', //mov
+            '0 0 0 0 66 74 79 70 71 74 20 20', //mov
+            '0 0 0 0 6D 6F 6F 76', //mov
+
+            '4F 67 67 53 0 02', //ogg
+            '1A 45 DF A3', //ogg
+
+            '52 49 46 46 x x x x 41 56 49 20', //avi (RIFF fileSize fileType LIST)(52 49 46 46,DC 6C 57 09,41 56 49 20,4C 49 53 54)
+        ];
+        var typeName = [
+            'jpg',
+            'png',
+            'mp4',
+            'mp4',
+            'mp4',
+            'mp4',
+            'mp4',
+            'm4v',
+            'm4v',
+            'mov',
+            'mov',
+            'mov',
+            'ogg',
+            'ogg',
+            'avi',
+        ];
+        var sliceSize = /png|jpg|jpeg/.test(type) ? 3 : 12;
+        var reader = new FileReader();
+        reader.readAsArrayBuffer(file);
+        reader.addEventListener("load", function(e) {
+            var slice = e.target.result.slice(0, sliceSize);
+            reader = null;
+            if (slice && slice.byteLength == sliceSize) {
+                var view = new Uint8Array(slice);
+                var arr = [];
+                view.forEach(function(v) {
+                    arr.push(v.toString(16));
+                });
+                view = null;
+                var idx = arr.join(' ').indexOf(imgType);
+                if (idx > -1) {
+                    back(typeName[idx]);
+                } else {
+                    arr = arr.map(function(v) {
+                        if (i > 3 && i < 8) {
+                            return 'x';
+                        }
+                        return v;
+                    });
+                    var idx = arr.join(' ').indexOf(imgType);
+                    if (idx > -1) {
+                        back(typeName[idx]);
+                    } else {
+                        back(false);
+                    }
+
+                }
+            } else {
+                back(false);
+            }
+
+        });
+    } else {
+        var type = file.name.match(/\.(\w+)$/)[1];
+        back(type);
+    }
+}
+```
+* 调用方法如下
+
+```javascript
+checkFileType('(mov|mp4|avi)',file,function(fileType){
+    // fileType = mp4,
+    // 如果file的类型不在枚举之列，则返回false
+});
+```
+
+* 上面上传文件的一步，可以改成：
+```javascript
+formdata.append('filename', md5code+'.'+fileType);
+```
+有了切割上传后，也就有了文件唯一标识信息，断点续传变成了后台的一个小小的逻辑判断后端主要做的内容为：根据前端传给后台的md5值，到服务器磁盘查找是否有之前未完成的文件合并信息（也就是未完成的半成品文件切片），取到之后根据上传切片的数量，返回数据告诉前端开始从第几节上传
+
+如果想要暂停切片的上传，可以使用XMLHttpRequest的 abort方法
+### 使用场景
+- 大文件加速上传：当文件大小超过预期大小时，使用分片上传可实现并行上传多个 Part， 以加快上传速度
+- 网络环境较差：建议使用分片上传。当出现上传失败的时候，仅需重传失败的Part
+- 流式上传：可以在需要上传的文件大小还不确定的情况下开始上传。这种场景在视频监控等行业应用中比较常见
+### 小结
+以上只是一个简单的实现思路，完整的实现断点续传还需要做全面场景应对工作，如:
+- 切片上传失败怎么办
+- 上传过程中刷新页面怎么办
+- 如何进行并行上传
+- 切片什么时候按数量切，什么时候按大小切
+- 如何结合 Web Work 处理大文件上传
+- 如何实现秒传
+
+参考文献
+https://segmentfault.com/a/1190000009448892
+https://baike.baidu.com/
