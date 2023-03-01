@@ -1,5 +1,5 @@
 ---
-title: 大文件如何做断点续传
+title: 大文件之断点续传
 layout: page
 date: 2022-07-05 11:18
 comments: true
@@ -31,7 +31,7 @@ key: "1"
 
 ### 实现思路
 整体思路比较简单，拿到文件，保存文件唯一性标识，切割文件，分段上传，每次上传一段，根据唯一性标识判断文件上传进度，直到文件的全部片段上传完毕
-![](https://ask.qcloudimg.com/http-save/yehe-3806669/uz6mtuvgsu.png?imageView2/2/w/1620)
+![实现思路](https://ask.qcloudimg.com/http-save/yehe-3806669/uz6mtuvgsu.png?imageView2/2/w/1620)
 代码实现大概如下：
 * 读取文件内容
 ```javascript
@@ -173,7 +173,6 @@ function checkFileType(type, file, back) {
 }
 ```
 * 调用方法如下
-
 ```javascript
 checkFileType('(mov|mp4|avi)',file,function(fileType){
     // fileType = mp4,
@@ -192,6 +191,7 @@ formdata.append('filename', md5code+'.'+fileType);
 - 大文件加速上传：当文件大小超过预期大小时，使用分片上传可实现并行上传多个 Part， 以加快上传速度
 - 网络环境较差：建议使用分片上传。当出现上传失败的时候，仅需重传失败的Part
 - 流式上传：可以在需要上传的文件大小还不确定的情况下开始上传。这种场景在视频监控等行业应用中比较常见
+
 ### 小结
 以上只是一个简单的实现思路，完整的实现断点续传还需要做全面场景应对工作，如:
 - 切片上传失败怎么办
