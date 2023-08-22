@@ -1,6 +1,6 @@
 ---
-title: 大文件之断点续传
-layout: page
+title: 大文件如何做断点续传
+layout: post
 date: 2022-07-05 11:18
 comments: true
 tags: 
@@ -31,7 +31,7 @@ key: "1"
 
 ### 实现思路
 整体思路比较简单，拿到文件，保存文件唯一性标识，切割文件，分段上传，每次上传一段，根据唯一性标识判断文件上传进度，直到文件的全部片段上传完毕
-![实现思路](https://ask.qcloudimg.com/http-save/yehe-3806669/uz6mtuvgsu.png?imageView2/2/w/1620)
+![](https://ask.qcloudimg.com/http-save/yehe-3806669/uz6mtuvgsu.png?imageView2/2/w/1620)
 代码实现大概如下：
 * 读取文件内容
 ```javascript
