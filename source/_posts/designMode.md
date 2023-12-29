@@ -1,6 +1,6 @@
 ---
 title: 前端设计模式总结
-layout: post
+layout: page
 date: 2023-08-05 11:18
 comments: true
 tags: 
@@ -13,8 +13,6 @@ key: "1"
 >   设计模式在我最初的认知中，总以为它是后端Java开发领域里的专有名词。在这样的认知下，对于作为一个前端开发者的我而言接触的并不多，愚昧的认为前端就不存在设计模式这一说法。然而在时间的推移下，工作之余通过对掘金平台相关技术文章的阅读及对vue源码调试与阅读，加上最近刚刚读完《JavaScript设计模式与开发实践》一书后。终于对设计模式有了系统的了解，也由此打破了之前对设计模式之存在与后端Java开发语言的局限认知，下面主要针对最近读完的相关设计模式一书后，梳理下个人设计模式全新的认识。
 
 <!--more-->
-
-<img src="/Users/zhanglinchong/Downloads/weixinread.jpg" alt="weixinread" style="height:700px;width:60%" />
 
 ### 什么是设计模式
 

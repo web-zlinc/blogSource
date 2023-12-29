@@ -1,6 +1,6 @@
 ---
 title: 大文件如何做断点续传
-layout: post
+layout: page
 date: 2022-07-05 11:18
 comments: true
 tags: 
