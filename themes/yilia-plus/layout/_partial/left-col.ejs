@@ -1,0 +1,57 @@
+<% var defaultBgImg = '/img/biubiubiu.gif'; %>
+    <% var overlayBgImg= theme.style.gif && theme.style.gif.enable && theme.style.gif.path ? theme.style.gif.path : defaultBgImg; %>
+        <div class="overlay">;
+            <% if (theme.style.gif && theme.style.gif.enable){ %>background: url('
+                <%- url_for(overlayBgImg) %>') no-repeat ;
+                    <%}%>"></div>
+        <div class="intrude-less">
+            <header id="header" class="inner">
+                <a href="<%- url_for('/') %>" class="profilepic">
+			<img src="<%- url_for(theme.avatar) %>" class="js-avatar">
+		</a>
+                <hgroup>
+                    <h1 class="header-author">
+                        <a href="<%- url_for('/') %>">
+                            <%= config.author %>
+                        </a>
+                    </h1>
+                </hgroup>
+                <% if (config.subtitle) { %>
+                    <p class="header-subtitle">
+                        <%= config.subtitle %>
+                    </p>
+                    <%}%>
+
+                        <nav class="header-menu">
+                            <ul>
+                                <% for (var i in theme.menu){ %>
+                                    <li><a href="<%- url_for(theme.menu[i]) %>" <% if (theme.open_in_new.menu){ %>target="_blank"<% } %>><%= i %></a></li>
+                                    <%}%>
+                            </ul>
+                        </nav>
+                        <nav class="header-smart-menu">
+                            <% for (var i in theme.smart_menu){ %>
+                                <% if(theme.smart_menu[i]){ %>
+                                    <a q-on="click: openSlider(e, '<%-i%>')" href="javascript:void(0)">
+                                        <%= theme.smart_menu[i] %>
+                                    </a>
+                                    <% } %>
+                                        <%}%>
+                        </nav>
+                        <nav class="header-nav">
+                            <div class="social">
+                                <% for (var i in theme.subNav){ %>
+                                    <% for (var nav in theme.subNav[i]){ %>
+                                        <a class="<%= nav %>" href="<%- url_for(theme.subNav[i][nav]) %>" title="<% if (__('subNav.title.'+ nav)){ %><%= __('subNav.title.'+ nav) %><% } else { %><%= nav %><% } %>" <% if (theme.open_in_new.subNav){ %>target="_blank"<% } %>><i class="icon-<%= nav %>"></i></a>
+                                        <%}%>
+                                            <%}%>
+                            </div>
+                            <!-- 网易云音乐插件 -->
+                            <% if (theme.music && theme.music.enable){ %>
+                                <div style="position:absolute; bottom:120px left:auto; width:85%">
+                                    <iframe frameborder="no" border="0" marginwidth="0" marginheight="0" width="240" height="52" src="//music.163.com/outchain/player?type=2&id=<%=theme.music.id||1334445174%>&auto=<%=theme.music.autoplay?1:0%>&height=32"></iframe>
+                                </div>
+                                <% } %>
+                        </nav>
+            </header>
+        </div>
